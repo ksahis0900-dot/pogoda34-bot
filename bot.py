@@ -424,13 +424,26 @@ async def cb_weather(callback: types.CallbackQuery):
     photo_url = get_random_photo(coords_key)
     kb = forecast_kb(coords_key)
 
-    await callback.message.delete()
-    await callback.message.answer_photo(
-        photo=URLInputFile(photo_url),
-        caption=msg,
-        reply_markup=kb,
-        parse_mode="HTML"
-    )
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
+    try:
+        await callback.message.answer_photo(
+            photo=URLInputFile(photo_url),
+            caption=msg,
+            reply_markup=kb,
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        logger.error(f"Failed to send photo for {city_data['name']}: {e}")
+        # Fallback to text
+        await callback.message.answer(
+            text=msg,
+            reply_markup=kb,
+            parse_mode="HTML"
+        )
     await callback.answer()
 
 @dp.callback_query(F.data.startswith("f_"))
@@ -446,13 +459,25 @@ async def cb_forecast(callback: types.CallbackQuery):
     
     photo_url = get_random_photo(coords_key)
     
-    await callback.message.delete()
-    await callback.message.answer_photo(
-        photo=URLInputFile(photo_url),
-        caption=msg,
-        reply_markup=back_kb(),
-        parse_mode="HTML"
-    )
+    try:
+        await callback.message.delete()
+    except:
+        pass
+    
+    try:
+        await callback.message.answer_photo(
+            photo=URLInputFile(photo_url),
+            caption=msg,
+            reply_markup=back_kb(),
+            parse_mode="HTML"
+        )
+    except Exception:
+        # Fallback to text
+        await callback.message.answer(
+            text=msg,
+            reply_markup=back_kb(),
+            parse_mode="HTML"
+        )
     await callback.answer()
 
 # --- ПОДПИСКИ ---
