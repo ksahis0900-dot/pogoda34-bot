@@ -44,57 +44,58 @@ DB_NAME = "subscribers.db"
 # -------------------------------------------------------------------
 CITY_PHOTOS = {
     "lat=48.708&lon=44.513": [  # Волгоград
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/volgograd_1.jpg",
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/volgograd_2.jpg"
+        "images/volgograd_1.jpg",
+        "images/volgograd_2.jpg"
     ],
     "lat=48.818&lon=44.757": [  # Волжский
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/volzhsky_1.jpg",
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/volzhsky_2.jpg"
+        "images/volzhsky_1.jpg",
+        "images/volzhsky_2.jpg"
     ],
     "lat=50.083&lon=45.4": [    # Камышин
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/kamyshin_1.jpg",
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/kamyshin_2.jpg"
+        "images/kamyshin_1.jpg",
+        "images/kamyshin_2.jpg"
     ],
     "lat=50.067&lon=43.233": [  # Михайловка
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/mikhaylovka_1.jpg",
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_sunflowers.jpg"
+        "images/mikhaylovka_1.jpg",
+        "images/nature_sunflowers.jpg"
     ],
     "lat=50.8&lon=42.0": [      # Урюпинск
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/uryupinsk_1.jpg",
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/uryupinsk_2.jpg"
+        "images/uryupinsk_1.jpg",
+        "images/uryupinsk_2.jpg"
     ],
     "lat=49.773&lon=43.655": [  # Фролово
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/frolovo_1.jpg",
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_steppe.jpg"
+        "images/frolovo_1.jpg",
+        "images/nature_steppe.jpg"
     ],
     "lat=48.691&lon=43.526": [  # Калач-на-Дону
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/kalach_1.jpg",
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/kalach_2.jpg"
+        "images/kalach_1.jpg",
+        "images/kalach_2.jpg"
     ],
     "lat=50.315&lon=44.807": [  # Котово
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_steppe.jpg",
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_sunflowers.jpg"
+        "images/nature_steppe.jpg",
+        "images/nature_sunflowers.jpg"
     ],
     "lat=48.805&lon=44.476": [  # Городище
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/gorodishche_1.jpg",
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/volgograd_1.jpg" # Близко к Волгограду
+        "images/gorodishche_1.jpg",
+        "images/volgograd_1.jpg"
     ],
     "lat=48.608&lon=42.85": [   # Суровикино
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_don.jpg",
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_sunflowers.jpg"
+        "images/nature_don.jpg",
+        "images/nature_sunflowers.jpg"
     ],
-    # Дефолтное фото для остальных (Природа области)
+    # Дефолтное фото для остальных
     "default": [
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/default_1.jpg",
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_don.jpg",
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_steppe.jpg"
+        "images/default_1.jpg",
+        "images/nature_don.jpg",
+        "images/nature_steppe.jpg"
     ]
 }
 
 def get_random_photo(coords_key: str) -> str:
-    """Возвращает случайное фото для города или дефолтное"""
+    """Возвращает путь к случайному фото"""
     photos = CITY_PHOTOS.get(coords_key, CITY_PHOTOS["default"])
     return random.choice(photos)
+
 
 # -------------------------------------------------------------------
 #  БАЗА ДАННЫХ
@@ -407,7 +408,7 @@ async def cmd_start(message: types.Message):
     
     try:
         await message.answer_photo(
-            photo=URLInputFile(photo_url),
+            photo=FSInputFile(photo_url),
             caption=txt,
             reply_markup=city_keyboard(),
             parse_mode="HTML"
@@ -451,7 +452,7 @@ async def cb_weather(callback: types.CallbackQuery):
 
     try:
         await callback.message.answer_photo(
-            photo=URLInputFile(photo_url),
+            photo=FSInputFile(photo_url),
             caption=msg,
             reply_markup=kb,
             parse_mode="HTML"
@@ -486,7 +487,7 @@ async def cb_forecast(callback: types.CallbackQuery):
     
     try:
         await callback.message.answer_photo(
-            photo=URLInputFile(photo_url),
+            photo=FSInputFile(photo_url),
             caption=msg,
             reply_markup=back_kb(),
             parse_mode="HTML"
@@ -563,7 +564,7 @@ async def send_scheduled_weather():
                             photo_url = get_random_photo(city_key)
                             await bot.send_photo(
                                 chat_id=user_id,
-                                photo=URLInputFile(photo_url),
+                                photo=FSInputFile(photo_url),
                                 caption=f"📬 <b>Рассылка погоды</b>\n\n{msg}",
                                 parse_mode="HTML"
                             )
