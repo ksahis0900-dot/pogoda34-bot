@@ -48,17 +48,46 @@ CITY_PHOTOS = {
         "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/volgograd_2.jpg"
     ],
     "lat=48.818&lon=44.757": [  # Волжский
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/volzhsky_1.jpg"
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/volzhsky_1.jpg",
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/volzhsky_2.jpg"
     ],
     "lat=50.083&lon=45.4": [    # Камышин
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/kamyshin_1.jpg"
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/kamyshin_1.jpg",
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/kamyshin_2.jpg"
+    ],
+    "lat=50.067&lon=43.233": [  # Михайловка
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/mikhaylovka_1.jpg",
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_sunflowers.jpg"
     ],
     "lat=50.8&lon=42.0": [      # Урюпинск
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/uryupinsk_1.jpg"
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/uryupinsk_1.jpg",
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/uryupinsk_2.jpg"
+    ],
+    "lat=49.773&lon=43.655": [  # Фролово
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/frolovo_1.jpg",
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_steppe.jpg"
+    ],
+    "lat=48.691&lon=43.526": [  # Калач-на-Дону
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/kalach_1.jpg",
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/kalach_2.jpg"
+    ],
+    "lat=50.315&lon=44.807": [  # Котово
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_steppe.jpg",
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_sunflowers.jpg"
+    ],
+    "lat=48.805&lon=44.476": [  # Городище
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/gorodishche_1.jpg",
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/volgograd_1.jpg" # Близко к Волгограду
+    ],
+    "lat=48.608&lon=42.85": [   # Суровикино
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_don.jpg",
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_sunflowers.jpg"
     ],
     # Дефолтное фото для остальных (Природа области)
     "default": [
-        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/default_1.jpg"
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/default_1.jpg",
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_don.jpg",
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/nature_steppe.jpg"
     ]
 }
 
