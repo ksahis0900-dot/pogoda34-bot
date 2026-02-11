@@ -44,30 +44,21 @@ DB_NAME = "subscribers.db"
 # -------------------------------------------------------------------
 CITY_PHOTOS = {
     "lat=48.708&lon=44.513": [  # Волгоград
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Volgograd_Mamayev_Kurgan_Motherland_Calls_asv2022-06.jpg/1200px-Volgograd_Mamayev_Kurgan_Motherland_Calls_asv2022-06.jpg",
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Volgograd_Bridge_over_Volga_River.jpg/1280px-Volgograd_Bridge_over_Volga_River.jpg",
-        "https://v1.ru/text/images/2023/05/09/d1/72268493.jpg",
-        "https://yourtriptorussia.com/wp-content/uploads/2020/04/Volgograd-Arena-at-night.jpg"
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/volgograd_1.jpg",
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/volgograd_2.jpg"
     ],
     "lat=48.818&lon=44.757": [  # Волжский
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Volzhskaya_HPP_2021.jpg/1200px-Volzhskaya_HPP_2021.jpg",
-        "https://upload.wikimedia.org/wikipedia/commons/5/53/Volzhsky_Park_DK_VGS.jpg",
-        "https://admvol.ru/upload/iblock/8a2/8a2e5b8e5c8e4e7e4e7e4e7e4e7e4e7e.jpg"
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/volzhsky_1.jpg"
     ],
     "lat=50.083&lon=45.4": [    # Камышин
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Kamyshin_Museum.jpg/1200px-Kamyshin_Museum.jpg",
-        "https://kamyshin.ru/images/photos/vid_s_volgi.jpg",
-        "https://infokam.su/n2022/2806221.jpg"
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/kamyshin_1.jpg"
     ],
     "lat=50.8&lon=42.0": [      # Урюпинск
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Monument_to_Goat_Uryupinsk.jpg/800px-Monument_to_Goat_Uryupinsk.jpg",
-        "https://avatars.dzeninfra.ru/get-zen_doc/34175/pub_5ce2762a3b662600b29db60b_5ce27b0b6ae53300b438f515/scale_1200",
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/uryupinsk_1.jpg"
     ],
-    # Дефолтное фото для остальных (Природа области, степь, Дон)
+    # Дефолтное фото для остальных (Природа области)
     "default": [
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Volga_River_near_Volgograd.jpg/1200px-Volga_River_near_Volgograd.jpg",
-        "https://cdn.tripster.ru/thumbs/2_42252b40-848e-11ec-b8f3-52467d530863.800x600.jpeg",
-        "https://tourism.volgograd.ru/upload/iblock/7d2/7d2e5b8e5c8e4e7e4e7e4e7e4e7e4e7e.jpg"
+        "https://raw.githubusercontent.com/ksahis0900-dot/pogoda34-bot/main/images/default_1.jpg"
     ]
 }
 
