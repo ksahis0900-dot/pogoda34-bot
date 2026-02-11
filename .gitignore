@@ -1,0 +1,22 @@
+# Зависимости
+node_modules/
+__pycache__/
+*.pyc
+
+# Окружение
+.env
+
+# Данные
+subscriptions.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# React (старое, не используется)
+dist/
+build/
