@@ -15,12 +15,10 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from dotenv import load_dotenv
 import aiohttp
 import aiosqlite
-from dateutil import parser
 from aiohttp import web
 
 # Загружаем переменные окружения
 load_dotenv()
-
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
@@ -69,15 +67,14 @@ def get_photo_data(coords_key: str):
         try:
             with open(path, 'rb') as f:
                 return BufferedInputFile(f.read(), filename=filename)
-        except Exception as e:
-            logger.error(f"Error reading file {path}: {e}")
+        except Exception:
+            pass
     
-    # Резерв - Волгоград
+    # Резерв
     v_path = os.path.join(IMAGES_DIR, "volgograd.jpg")
     if os.path.exists(v_path):
         with open(v_path, 'rb') as f:
             return BufferedInputFile(f.read(), filename="volgograd.jpg")
-            
     return None
 
 # Инициализация
@@ -178,8 +175,21 @@ def format_weather(data, city_name):
     )
     return msg
 
+def format_forecast_msg(data, city_name):
+    if not data: return "⚠️ Ошибка прогноза"
+    msg = f"🗓 <b>ПРОГНОЗ НА 5 ДНЕЙ</b>\n📍 {city_name.upper()}\n➖➖➖➖➖➖➖➖\n"
+    daily = {}
+    for item in data['list']:
+        day = datetime.fromtimestamp(item['dt'], tz=timezone.utc).strftime('%d.%m')
+        if day not in daily: daily[day] = item
+    for d, it in list(daily.items())[:5]:
+        t = round(it['main']['temp'])
+        desc = it['weather'][0]['description']
+        msg += f"\n<b>{d}</b>: {t:+d}°C, {desc}"
+    return msg
+
 # --- КЛАВИАТУРЫ ---
-def main_kb():
+def menu_kb():
     builder = InlineKeyboardBuilder()
     for k, v in CITIES.items():
         builder.button(text=f"{v['emoji']} {v['name']}", callback_data=f"w_{k}")
@@ -187,53 +197,104 @@ def main_kb():
     builder.row(InlineKeyboardButton(text="📬 Рассылка", callback_data="sub_menu"))
     return builder.as_markup()
 
+def weather_kb(key):
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📅 Прогноз на 5 дней", callback_data=f"f_{key}")
+    builder.button(text="🔙 Меню", callback_data="back_home")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def back_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="back_home")]])
+
 # --- ХЕНДЛЕРЫ ---
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    logger.info(f"START command from {message.from_user.id}")
-    txt = "🌤 <b>ПОГОДА 34</b>\nВыбери город:"
+    logger.info(f"START from {message.from_user.id}")
     photo = get_photo_data("default")
+    txt = "🌤 <b>ПОГОДА 34</b>\nВолгоградская область. Выбери город:"
     if photo:
-        await message.answer_photo(photo=photo, caption=txt, reply_markup=main_kb(), parse_mode="HTML")
+        await message.answer_photo(photo=photo, caption=txt, reply_markup=menu_kb(), parse_mode="HTML")
     else:
-        await message.answer(txt, reply_markup=main_kb(), parse_mode="HTML")
+        await message.answer(txt, reply_markup=menu_kb(), parse_mode="HTML")
+
+@dp.callback_query(F.data == "back_home")
+async def cb_home(callback: types.CallbackQuery):
+    await callback.message.delete()
+    await cmd_start(callback.message)
+    await callback.answer()
 
 @dp.callback_query(F.data.startswith("w_"))
 async def cb_weather(callback: types.CallbackQuery):
     key = callback.data.split("w_")[1]
     city = CITIES.get(key)
-    if not city: return
-    
-    data = await get_weather_data(*key.replace("lat=","").replace("lon=","").split("&"))
+    lat_lon = key.replace("lat=","").replace("lon=","").split("&")
+    data = await get_weather_data(lat_lon[0], lat_lon[1])
     msg = format_weather(data, city['name'])
     photo = get_photo_data(key)
-    
     await callback.message.delete()
     if photo:
-        await callback.message.answer_photo(photo=photo, caption=msg, reply_markup=main_kb(), parse_mode="HTML")
+        await callback.message.answer_photo(photo=photo, caption=msg, reply_markup=weather_kb(key), parse_mode="HTML")
     else:
-        await callback.message.answer(msg, reply_markup=main_kb(), parse_mode="HTML")
-    await callback.answer()
+        await callback.message.answer(msg, reply_markup=weather_kb(key), parse_mode="HTML")
+
+@dp.callback_query(F.data.startswith("f_"))
+async def cb_forecast(callback: types.CallbackQuery):
+    key = callback.data.split("f_")[1]
+    city = CITIES.get(key)
+    lat_lon = key.replace("lat=","").replace("lon=","").split("&")
+    data = await get_forecast_data(lat_lon[0], lat_lon[1])
+    msg = format_forecast_msg(data, city['name'])
+    await callback.message.delete()
+    photo = get_photo_data(key)
+    if photo:
+        await callback.message.answer_photo(photo=photo, caption=msg, reply_markup=back_kb(), parse_mode="HTML")
+    else:
+        await callback.message.answer(msg, reply_markup=back_kb(), parse_mode="HTML")
 
 @dp.callback_query(F.data == "sub_menu")
 async def cb_sub(callback: types.CallbackQuery):
-    await callback.message.answer("Функция рассылки временно на техобслуживании. Мы скоро ее вернем!")
-    await callback.answer()
+    sub = await get_subscription(callback.from_user.id)
+    txt = f"📬 <b>Рассылка</b>\n\n"
+    if sub: txt += f"Вы подписаны на: <b>{sub[1]}</b>"
+    else: txt += "Вы не подписаны. Выберите город в меню, чтобы получать погоду утром и вечером."
+    
+    kb = InlineKeyboardBuilder()
+    if sub: kb.button(text="❌ Отписаться", callback_data="unsub")
+    else: kb.button(text="🔔 Подписаться (тек. город)", callback_data="sub_now") # Для простоты
+    kb.button(text="🔙 Назад", callback_data="back_home")
+    kb.adjust(1)
+    
+    await callback.message.edit_caption(caption=txt, reply_markup=kb.as_markup(), parse_mode="HTML")
 
-# --- СЕРВЕР ---
-async def handle_health(request):
-    return web.Response(text="OK")
+# --- СЕРВЕР И ПЛАНИРОВЩИК ---
+async def send_scheduled():
+    while True:
+        now = datetime.now(timezone.utc)
+        h = (now.hour + 3) % 24
+        if (h == 7 or h == 18) and now.minute == 0:
+            subs = await get_all_subscribers()
+            for uid, key, name in subs:
+                try:
+                    lat_lon = key.replace("lat=","").replace("lon=","").split("&")
+                    data = await get_weather_data(lat_lon[0], lat_lon[1])
+                    if data:
+                        photo = get_photo_data(key)
+                        msg = f"📬 <b>Утренняя рассылка</b>\n\n{format_weather(data, name)}"
+                        if photo: await bot.send_photo(uid, photo, caption=msg, parse_mode="HTML")
+                        else: await bot.send_message(uid, msg, parse_mode="HTML")
+                except: pass
+            await asyncio.sleep(61)
+        await asyncio.sleep(30)
 
 async def main():
     await init_db()
-    
     app = web.Application()
-    app.router.add_get("/", handle_health)
+    app.router.add_get("/", lambda r: web.Response(text="OK"))
     runner = web.AppRunner(app)
     await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", int(os.environ.get("PORT", 10000))).start()
-    
-    logger.info("🚀 Бот запущен!")
+    asyncio.create_task(send_scheduled())
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
