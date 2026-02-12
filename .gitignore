@@ -20,3 +20,5 @@ Thumbs.db
 # React (старое, не используется)
 dist/
 build/
+*.db
+*.sqlite3
