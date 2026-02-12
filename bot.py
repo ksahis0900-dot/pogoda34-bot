@@ -2,6 +2,15 @@ import asyncio
 import logging
 import os
 import random
+
+# DEBUG: List files to ensure deployment success
+print("--- DEBUG: CHECKING IMAGES FOLDER ---")
+if os.path.exists("images"):
+    print(f"Files found: {os.listdir('images')}")
+else:
+    print("ERROR: 'images' folder does NOT exist!")
+print("-------------------------------------")
+
 from datetime import datetime, timezone
 
 from aiogram import Bot, Dispatcher, types, F
