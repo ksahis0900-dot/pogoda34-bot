@@ -66,16 +66,39 @@ def get_photo_data(coords_key: str):
     if os.path.exists(path):
         try:
             with open(path, 'rb') as f:
-                return BufferedInputFile(f.read(), filename=filename)
-        except Exception:
-            pass
+                data = f.read()
+                logger.info(f"Successfully read image: {filename} ({len(data)} bytes)")
+                return BufferedInputFile(data, filename=filename)
+        except Exception as e:
+            logger.error(f"Critical error reading file {path}: {e}")
+    else:
+        logger.warning(f"Image not found on disk: {path}")
     
     # Резерв
     v_path = os.path.join(IMAGES_DIR, "volgograd.jpg")
     if os.path.exists(v_path):
-        with open(v_path, 'rb') as f:
-            return BufferedInputFile(f.read(), filename="volgograd.jpg")
+        try:
+            with open(v_path, 'rb') as f:
+                data = f.read()
+                logger.info(f"Using fallback image: volgograd.jpg ({len(data)} bytes)")
+                return BufferedInputFile(data, filename="volgograd.jpg")
+        except Exception as e:
+            logger.error(f"Failed to read fallback image {v_path}: {e}")
+            
+    logger.error("No images found at all!")
     return None
+
+def check_images():
+    """Проверяет наличие папки и файлов при старте"""
+    logger.info(f"Current working directory: {os.getcwd()}")
+    logger.info(f"BASE_DIR: {BASE_DIR}")
+    logger.info(f"IMAGES_DIR: {IMAGES_DIR}")
+    
+    if os.path.exists(IMAGES_DIR):
+        files = os.listdir(IMAGES_DIR)
+        logger.info(f"Images folder found. Files ({len(files)}): {files}")
+    else:
+        logger.error(f"IMAGES FOLDER NOT FOUND AT: {IMAGES_DIR}")
 
 # Инициализация
 bot = Bot(token=BOT_TOKEN)
@@ -289,6 +312,8 @@ async def send_scheduled():
 
 async def main():
     await init_db()
+    check_images()
+    
     app = web.Application()
     app.router.add_get("/", lambda r: web.Response(text="OK"))
     runner = web.AppRunner(app)
