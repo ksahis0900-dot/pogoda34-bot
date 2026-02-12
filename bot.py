@@ -44,63 +44,43 @@ dp = Dispatcher()
 DB_NAME = "subscribers.db"
 
 # -------------------------------------------------------------------
-#  ФОТО ГОРОДОВ (Имена файлов в папке images)
+#  ФОТО ГОРОДОВ (URL-ссылки на фото из Unsplash)
 # -------------------------------------------------------------------
 CITY_PHOTOS = {
-    # Основные города (относительные пути для надежности)
-    "lat=48.708&lon=44.513": ["images/volgograd.jpg"],       # Волгоград
-    "lat=48.818&lon=44.757": ["images/volzhsky.jpg"],        # Волжский
-    "lat=50.083&lon=45.4":   ["images/kamyshin.jpg"],         # Камышин
-    "lat=50.067&lon=43.233": ["images/mikhaylovka.jpg"],      # Михайловка
-    "lat=50.8&lon=42.0":     ["images/uryupinsk.jpg"],        # Урюпинск
-    "lat=49.773&lon=43.655": ["images/frolovo.jpg"],         # Фролово
-    "lat=48.691&lon=43.526": ["images/kalach.jpg"],   # Калач-на-Дону
-    "lat=47.583&lon=43.133": ["images/kotelnikovo.jpg"],    # Котельниково
-    "lat=50.315&lon=44.807": ["images/kotovo.jpg"],          # Котово
-    "lat=48.608&lon=42.85":  ["images/surovikino.jpg"],     # Суровикино
-    "lat=48.712&lon=44.572": ["images/krasnoslobodsk.jpg"],  # Краснослободск
-    "lat=50.981&lon=44.767": ["images/zhirnovsk.jpg"],       # Жирновск
-    "lat=50.533&lon=42.667": ["images/novoanninsky.jpg"],   # Новоаннинский
-    "lat=50.045&lon=46.883": ["images/pallasovka.jpg"],     # Палласовка
-    "lat=49.058&lon=44.829": ["images/dubovka.jpg"],        # Дубовка
-    "lat=50.028&lon=45.46":  ["images/nikolaevsk.jpg"],     # Николаевск
-    "lat=48.705&lon=45.202": ["images/leninsk.jpg"],        # Ленинск
-    "lat=50.137&lon=45.211": ["images/petrov_val.jpg"],     # Петров Вал
-    "lat=49.583&lon=42.733": ["images/serafimovich.jpg"],    # Серафимович
-    "lat=48.805&lon=44.476": ["images/volgograd.jpg"],       # Городище (используем Волгоград)
+    # Используем Unsplash Source API для стабильных красивых фото
+    "lat=48.708&lon=44.513": ["https://source.unsplash.com/800x600/?volgograd,russia,city"],       # Волгоград
+    "lat=48.818&lon=44.757": ["https://source.unsplash.com/800x600/?volga,river,city"],        # Волжский
+    "lat=50.083&lon=45.4":   ["https://source.unsplash.com/800x600/?russia,town,architecture"],         # Камышин
+    "lat=50.067&lon=43.233": ["https://source.unsplash.com/800x600/?russia,countryside"],      # Михайловка
+    "lat=50.8&lon=42.0":     ["https://source.unsplash.com/800x600/?russia,village"],        # Урюпинск
+    "lat=49.773&lon=43.655": ["https://source.unsplash.com/800x600/?russia,town"],         # Фролово
+    "lat=48.691&lon=43.526": ["https://source.unsplash.com/800x600/?russia,river,landscape"],   # Калач-на-Дону
+    "lat=47.583&lon=43.133": ["https://source.unsplash.com/800x600/?russia,steppe"],    # Котельниково
+    "lat=50.315&lon=44.807": ["https://source.unsplash.com/800x600/?russia,nature"],          # Котово
+    "lat=48.608&lon=42.85":  ["https://source.unsplash.com/800x600/?russia,fields"],     # Суровикино
+    "lat=48.712&lon=44.572": ["https://source.unsplash.com/800x600/?russia,water"],  # Краснослободск
+    "lat=50.981&lon=44.767": ["https://source.unsplash.com/800x600/?russia,forest"],       # Жирновск
+    "lat=50.533&lon=42.667": ["https://source.unsplash.com/800x600/?russia,plains"],   # Новоаннинский
+    "lat=50.045&lon=46.883": ["https://source.unsplash.com/800x600/?russia,desert"],     # Палласовка
+    "lat=49.058&lon=44.829": ["https://source.unsplash.com/800x600/?russia,autumn"],        # Дубовка
+    "lat=50.028&lon=45.46":  ["https://source.unsplash.com/800x600/?russia,spring"],     # Николаевск
+    "lat=48.705&lon=45.202": ["https://source.unsplash.com/800x600/?russia,summer"],        # Ленинск
+    "lat=50.137&lon=45.211": ["https://source.unsplash.com/800x600/?russia,winter"],     # Петров Вал
+    "lat=49.583&lon=42.733": ["https://source.unsplash.com/800x600/?russia,church"],    # Серафимович
+    "lat=48.805&lon=44.476": ["https://source.unsplash.com/800x600/?volgograd,russia,city"],       # Городище
 
     # Дефолтное фото
     "default": [
-        "images/volgograd.jpg", "images/kamyshin.jpg"
+        "https://source.unsplash.com/800x600/?russia,landscape"
     ]
 }
 
-def get_random_photo(coords_key: str) -> str | None:
-    """Возвращает путь к фото, проверяя существование файла.
-    Если файл не найден, пытается вернуть дефолтное фото.
-    Если и дефолтное не найдено, возвращает None."""
-    
-    # Берем список путей
+def get_random_photo(coords_key: str):
+    """Возвращает URL фото"""
     photo_list = CITY_PHOTOS.get(coords_key, CITY_PHOTOS["default"])
     if not photo_list:
-        return None
-        
-    # Выбираем случайный
-    path = random.choice(photo_list)
-    
-    # Получаем абсолютный путь
-    abs_path = os.path.abspath(path)
-    
-    # Проверяем существование
-    if not os.path.exists(abs_path):
-        print(f"ERROR: Photo file NOT found: {abs_path}")
-        # Если текущий ключ не "default", пробуем дефолтное фото
-        if coords_key != "default":
-             return get_random_photo("default") # Рекурсивно пробуем дефолт
-        # Если это уже был "default" или рекурсивный вызов вернул None, то возвращаем None
-        return None
-        
-    return abs_path
+        return CITY_PHOTOS["default"][0]
+    return random.choice(photo_list)
 
 # -------------------------------------------------------------------
 #  БАЗА ДАННЫХ
@@ -425,7 +405,7 @@ async def cmd_start(message: types.Message):
     
     try:
         await message.answer_photo(
-            photo=FSInputFile(photo_url),
+            photo=URLInputFile(photo_url),
             caption=txt,
             reply_markup=city_keyboard(),
             parse_mode="HTML"
@@ -469,7 +449,7 @@ async def cb_weather(callback: types.CallbackQuery):
 
     try:
         await callback.message.answer_photo(
-            photo=FSInputFile(photo_url),
+            photo=URLInputFile(photo_url),
             caption=msg,
             reply_markup=kb,
             parse_mode="HTML"
@@ -504,7 +484,7 @@ async def cb_forecast(callback: types.CallbackQuery):
     
     try:
         await callback.message.answer_photo(
-            photo=FSInputFile(photo_url),
+            photo=URLInputFile(photo_url),
             caption=msg,
             reply_markup=back_kb(),
             parse_mode="HTML"
@@ -581,7 +561,7 @@ async def send_scheduled_weather():
                             photo_url = get_random_photo(city_key)
                             await bot.send_photo(
                                 chat_id=user_id,
-                                photo=FSInputFile(photo_url),
+                                photo=URLInputFile(photo_url),
                                 caption=f"📬 <b>Рассылка погоды</b>\n\n{msg}",
                                 parse_mode="HTML"
                             )
