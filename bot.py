@@ -34,7 +34,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 IMAGES_DIR = os.path.join(BASE_DIR, "images")
 
 def get_photo_data(coords_key: str):
-    """Находит фото и читает его в память для надежной отправки"""
+    """Находит фото на диске. Если его нет или оно битое - возвращает URL-fallback."""
+    # Словарь URL-заглушек на крайний случай (красивые фото городов)
+    URL_FALLBACKS = {
+        "lat=48.708&lon=44.513": "https://images.unsplash.com/photo-1561564752-19816503704d?w=800", # Volgograd
+        "default": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800"
+    }
+    
     CITY_PHOTOS = {
         "lat=48.708&lon=44.513": ["volgograd.jpg"],
         "lat=48.818&lon=44.757": ["volzhsky.jpg"],
@@ -63,42 +69,32 @@ def get_photo_data(coords_key: str):
     filename = random.choice(filenames)
     path = os.path.join(IMAGES_DIR, filename)
     
-    if os.path.exists(path):
+    if os.path.exists(path) and os.path.getsize(path) > 1000:
         try:
             with open(path, 'rb') as f:
                 data = f.read()
-                logger.info(f"Successfully read image: {filename} ({len(data)} bytes)")
+                logger.info(f"OK: {filename} ({len(data)} bytes)")
                 return BufferedInputFile(data, filename=filename)
         except Exception as e:
-            logger.error(f"Critical error reading file {path}: {e}")
-    else:
-        logger.warning(f"Image not found on disk: {path}")
+            logger.error(f"Read error {filename}: {e}")
     
-    # Резерв
-    v_path = os.path.join(IMAGES_DIR, "volgograd.jpg")
-    if os.path.exists(v_path):
-        try:
-            with open(v_path, 'rb') as f:
-                data = f.read()
-                logger.info(f"Using fallback image: volgograd.jpg ({len(data)} bytes)")
-                return BufferedInputFile(data, filename="volgograd.jpg")
-        except Exception as e:
-            logger.error(f"Failed to read fallback image {v_path}: {e}")
-            
-    logger.error("No images found at all!")
-    return None
+    # Если локального файла нет, возвращаем URL (чтобы бот не падал)
+    fallback_url = URL_FALLBACKS.get(coords_key, URL_FALLBACKS["default"])
+    logger.warning(f"Using URL fallback for {coords_key}")
+    return fallback_url
 
 def check_images():
-    """Проверяет наличие папки и файлов при старте"""
-    logger.info(f"Current working directory: {os.getcwd()}")
-    logger.info(f"BASE_DIR: {BASE_DIR}")
-    logger.info(f"IMAGES_DIR: {IMAGES_DIR}")
-    
+    """Проверка файлов с размерами"""
+    logger.info(f"Checking images in {IMAGES_DIR}...")
     if os.path.exists(IMAGES_DIR):
         files = os.listdir(IMAGES_DIR)
-        logger.info(f"Images folder found. Files ({len(files)}): {files}")
+        for f in files[:5]: # Проверим первые 5 для примера в логах
+            p = os.path.join(IMAGES_DIR, f)
+            size = os.path.getsize(p) if os.path.isfile(p) else "DIR"
+            logger.info(f" - {f}: {size} bytes")
+        logger.info(f"Total files: {len(files)}")
     else:
-        logger.error(f"IMAGES FOLDER NOT FOUND AT: {IMAGES_DIR}")
+        logger.error("IMAGES DIRECTORY MISSING!")
 
 # Инициализация
 bot = Bot(token=BOT_TOKEN)
