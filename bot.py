@@ -1,4 +1,4 @@
-# Final Version 1.1 - Stable Build
+# Final Stable Build v1.2
 import asyncio
 import logging
 import os
@@ -20,8 +20,9 @@ from aiohttp import web
 
 # Загружаем переменные окружения
 load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
+# Токен подхватится либо из настроек Render, либо из этой строки (ваш токен)
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8527373588:AAGcjWQtX7VfMvPe4p3bBDJ-0-DUpasy-m8")
+OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "bafd7faf0a523d40f16892a82b062065")
 
 # Настройка логирования
 logging.basicConfig(
@@ -32,9 +33,9 @@ logger = logging.getLogger("Погода34")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 IMAGES_DIR = os.path.join(BASE_DIR, "images")
-DB_NAME = "subscribers.db"
+DB_PATH = os.path.join(BASE_DIR, "subscribers.db")
 
-# --- КОНСТАНТЫ ГОРОДОВ ---
+# --- КОНСТАНТЫ ГОРОДОВ (20 ГОРОДОВ) ---
 CITIES = {
     "lat=48.708&lon=44.513": {"name": "Волгоград", "emoji": "🏙"},
     "lat=48.818&lon=44.757": {"name": "Волжский", "emoji": "⚡️"},
@@ -59,7 +60,6 @@ CITIES = {
 }
 
 def get_photo_file(key: str):
-    """Возвращает объект BufferedInputFile для отправки фото"""
     CITY_FILES = {
         "lat=48.708&lon=44.513": "volgograd.jpg",
         "lat=48.818&lon=44.757": "volzhsky.jpg",
@@ -85,13 +85,16 @@ def get_photo_file(key: str):
     fname = CITY_FILES.get(key, "volgograd.jpg")
     path = os.path.join(IMAGES_DIR, fname)
     if os.path.exists(path):
-        with open(path, 'rb') as f:
-            return BufferedInputFile(f.read(), filename=fname)
+        try:
+            with open(path, 'rb') as f:
+                return BufferedInputFile(f.read(), filename=fname)
+        except Exception as e:
+            logger.error(f"Error reading image {fname}: {e}")
     return None
 
-# --- БАЗА ДАННЫХ ---
+# --- БАЗА ---
 async def init_db():
-    async with aiosqlite.connect(DB_NAME) as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("CREATE TABLE IF NOT EXISTS subs (uid INTEGER PRIMARY KEY, key TEXT, cityName TEXT)")
         await db.commit()
 
@@ -99,7 +102,7 @@ async def init_db():
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# --- ФУНКЦИИ API ---
+# --- API ---
 async def fetch_weather(lat, lon):
     url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={OPENWEATHER_API_KEY}&units=metric&lang=ru"
     async with aiohttp.ClientSession() as s:
@@ -112,7 +115,7 @@ async def fetch_forecast(lat, lon):
         async with s.get(url) as r:
             return await r.json() if r.status == 200 else None
 
-# --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
+# --- ВСПОМОГАТЕЛЬНОЕ ---
 def get_emoji(wid):
     if 200 <= wid <= 232: return "⛈"
     if 300 <= wid <= 321: return "🌧"
@@ -127,8 +130,7 @@ def get_emoji(wid):
 
 def format_cur(d, name):
     if not d: return "⚠️ Ошибка данных погоды"
-    t = round(d['main']['temp'])
-    fl = round(d['main']['feels_like'])
+    t, fl = round(d['main']['temp']), round(d['main']['feels_like'])
     desc = d['weather'][0]['description'].capitalize()
     emoji = get_emoji(d['weather'][0]['id'])
     return (
@@ -142,20 +144,7 @@ def format_cur(d, name):
         f"➖➖➖➖➖➖➖➖➖➖"
     )
 
-def format_for(d, name):
-    if not d: return "⚠️ Ошибка данных прогноза"
-    msg = f"🗓 <b>ПРОГНОЗ НА 5 ДНЕЙ: {name.upper()}</b>\n➖➖➖➖➖➖➖➖➖➖\n"
-    days = {}
-    for item in d['list']:
-        dt = datetime.fromtimestamp(item['dt'], tz=timezone.utc).strftime("%d.%m")
-        if dt not in days: days[dt] = item
-    for dt, val in list(days.items())[:5]:
-        t = round(val['main']['temp'])
-        desc = val['weather'][0]['description']
-        msg += f"\n<b>{dt}</b>: {t:+d}°C, {desc}"
-    return msg
-
-# --- КЛАВИАТУРЫ ---
+# --- КЛАВЫ ---
 def get_main_kb():
     kb = InlineKeyboardBuilder()
     for k, v in CITIES.items():
@@ -164,15 +153,11 @@ def get_main_kb():
     kb.row(InlineKeyboardButton(text="📬 Рассылка", callback_data="sub_menu"))
     return kb.as_markup()
 
-def get_back_kb():
-    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад в меню", callback_data="home")]])
-
-# --- ХЕНДЛЕРЫ ---
 @dp.message(Command("start"))
 async def start_handler(m: types.Message):
-    logger.info(f"User {m.from_user.id} started the bot")
+    logger.info(f"START command from user {m.from_user.id}")
     txt = "🌤 <b>ПОГОДА 34</b>\nВолгоградская область\n\nВыберите город из списка ниже:"
-    photo = get_photo_file("lat=48.708&lon=44.513") # Волгоград на старт
+    photo = get_photo_file("lat=48.708&lon=44.513")
     if photo:
         await m.answer_photo(photo, caption=txt, reply_markup=get_main_kb(), parse_mode="HTML")
     else:
@@ -186,12 +171,11 @@ async def home_cb(c: types.CallbackQuery):
 
 @dp.callback_query(F.data.startswith("weather_"))
 async def weather_cb(c: types.CallbackQuery):
-    await c.answer("Получаю данные...")
     key = c.data.split("weather_")[1]
     city = CITIES[key]
+    await c.answer(f"Загружаю: {city['name']}")
     coords = key.replace("lat=","").replace("lon=","").split("&")
     data = await fetch_weather(coords[0], coords[1])
-    
     text = format_cur(data, city['name'])
     photo = get_photo_file(key)
     
@@ -208,36 +192,43 @@ async def weather_cb(c: types.CallbackQuery):
 
 @dp.callback_query(F.data.startswith("forecast_"))
 async def forecast_cb(c: types.CallbackQuery):
-    await c.answer("Загружаю прогноз...")
     key = c.data.split("forecast_")[1]
     city = CITIES[key]
+    await c.answer(f"Прогноз: {city['name']}")
     coords = key.replace("lat=","").replace("lon=","").split("&")
     data = await fetch_forecast(coords[0], coords[1])
     
-    text = format_for(data, city['name'])
-    photo = get_photo_file(key)
+    msg = f"🗓 <b>ПРОГНОЗ: {city['name'].upper()}</b>\n➖➖➖➖➖➖➖➖\n"
+    days = {}
+    if data:
+        for it in data['list']:
+            dt = datetime.fromtimestamp(it['dt'], tz=timezone.utc).strftime("%d.%m")
+            if dt not in days: days[dt] = it
+        for dt, v in list(days.items())[:5]:
+            msg += f"\n<b>{dt}</b>: {round(v['main']['temp']):+d}°C, {v['weather'][0]['description']}"
     
+    photo = get_photo_file(key)
+    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data=f"weather_{key}")]])
     await c.message.delete()
     if photo:
-        await c.message.answer_photo(photo, caption=text, reply_markup=get_back_kb(), parse_mode="HTML")
+        await c.message.answer_photo(photo, caption=msg, reply_markup=kb, parse_mode="HTML")
     else:
-        await c.message.answer(text, reply_markup=get_back_kb(), parse_mode="HTML")
+        await c.message.answer(msg, reply_markup=kb, parse_mode="HTML")
 
 @dp.callback_query(F.data == "sub_menu")
 async def sub_menu_cb(c: types.CallbackQuery):
     await c.answer()
-    async with aiosqlite.connect(DB_NAME) as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT cityName FROM subs WHERE uid=?", (c.from_user.id,)) as cur:
             row = await cur.fetchone()
     
     kb = InlineKeyboardBuilder()
     if row:
-        txt = f"📬 <b>РАССЫЛКА</b>\n\nВы подписаны на: <b>{row[0]}</b>\nВремя: 07:00 и 18:00 МСК"
+        txt = f"📬 <b>РАССЫЛКА</b>\n\nВы подписаны на: <b>{row[0]}</b>"
         kb.button(text="❌ Отписаться", callback_data="unsub")
     else:
-        txt = "📬 <b>РАССЫЛКА</b>\n\nПодпишитесь на уведомления о погоде дважды в день (утром и вечером)."
+        txt = "📬 <b>РАССЫЛКА</b>\n\nПодписаться на прогноз (07:00 и 18:00 МСК)?"
         kb.button(text="🔔 Подписаться", callback_data="sub_list")
-    
     kb.row(InlineKeyboardButton(text="🔙 Назад", callback_data="home"))
     await c.message.delete()
     await c.message.answer(txt, reply_markup=kb.as_markup(), parse_mode="HTML")
@@ -254,70 +245,55 @@ async def sub_list_cb(c: types.CallbackQuery):
 @dp.callback_query(F.data.startswith("setsub_"))
 async def set_sub_cb(c: types.CallbackQuery):
     key = c.data.split("setsub_")[1]
-    city_name = CITIES[key]['name']
-    async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute("INSERT OR REPLACE INTO subs VALUES (?, ?, ?)", (c.from_user.id, key, city_name))
+    name = CITIES[key]['name']
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("INSERT OR REPLACE INTO subs VALUES (?, ?, ?)", (c.from_user.id, key, name))
         await db.commit()
-    await c.answer(f"✅ Подписка на {city_name} оформлена!", show_alert=True)
+    await c.answer(f"✅ Подписка на {name} оформлена!", show_alert=True)
     await sub_menu_cb(c)
 
 @dp.callback_query(F.data == "unsub")
 async def unsub_cb(c: types.CallbackQuery):
-    async with aiosqlite.connect(DB_NAME) as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM subs WHERE uid=?", (c.from_user.id,))
         await db.commit()
     await c.answer("❌ Подписка отменена", show_alert=True)
     await sub_menu_cb(c)
 
-# --- ПЛАНИРОВЩИК РАССЫЛКИ ---
+# --- ПЛАНИРОВЩИК ---
 async def mailing_task():
     sent_hours = set()
     while True:
         now = datetime.now(timezone.utc)
-        msk_hour = (now.hour + 3) % 24
-        
-        if msk_hour in [7, 18] and msk_hour not in sent_hours:
-            logger.info(f"Starting scheduled mailing for hour {msk_hour}")
-            async with aiosqlite.connect(DB_NAME) as db:
+        h = (now.hour + 3) % 24
+        if h in [7, 18] and h not in sent_hours:
+            async with aiosqlite.connect(DB_PATH) as db:
                 async with db.execute("SELECT uid, key, cityName FROM subs") as cur:
                     users = await cur.fetchall()
-            
             for uid, key, name in users:
                 try:
                     coords = key.replace("lat=","").replace("lon=","").split("&")
                     data = await fetch_weather(coords[0], coords[1])
                     if data:
                         photo = get_photo_file(key)
-                        msg = f"🔔 <b>ЕЖЕДНЕВНАЯ РАССЫЛКА</b>\n\n{format_cur(data, name)}"
+                        msg = f"🔔 <b>РАССЫЛКА</b>\n\n{format_cur(data, name)}"
                         if photo: await bot.send_photo(uid, photo, caption=msg, parse_mode="HTML")
                         else: await bot.send_message(uid, msg, parse_mode="HTML")
-                    await asyncio.sleep(0.05) # Защита от спам-фильтра
-                except Exception as e:
-                    logger.error(f"Error sending to {uid}: {e}")
-            
-            sent_hours.add(msk_hour)
-        
-        if msk_hour not in [7, 18]:
-            sent_hours.clear()
-            
+                except: pass
+            sent_hours.add(h)
+        if h not in [7, 18]: sent_hours.clear()
         await asyncio.sleep(30)
 
-# --- СЕРВЕР ---
 async def main():
     await init_db()
-    
-    # Web server for health checks
     app = web.Application()
     app.router.add_get("/", lambda r: web.Response(text="Bot is running!"))
     runner = web.AppRunner(app)
     await runner.setup()
-    port = int(os.environ.get("PORT", 10000))
-    await web.TCPSite(runner, "0.0.0.0", port).start()
-    
+    await web.TCPSite(runner, "0.0.0.0", int(os.environ.get("PORT", 10000))).start()
     asyncio.create_task(mailing_task())
-    
-    logger.info("🚀 Бот запускается...")
     await bot.delete_webhook(drop_pending_updates=True)
+    logger.info("🚀 Бот запущен и ожидает сообщений!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
