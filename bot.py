@@ -311,17 +311,34 @@ async def send_scheduled():
         await asyncio.sleep(30)
 
 async def main():
-    await init_db()
+    logger.info("--- STARTING BOT ENVIRONMENT CHECK ---")
     check_images()
     
-    app = web.Application()
-    app.router.add_get("/", lambda r: web.Response(text="OK"))
-    runner = web.AppRunner(app)
-    await runner.setup()
-    await web.TCPSite(runner, "0.0.0.0", int(os.environ.get("PORT", 10000))).start()
+    logger.info("Initializing database...")
+    await init_db()
+    
+    logger.info("Starting web server...")
+    try:
+        app = web.Application()
+        app.router.add_get("/", lambda r: web.Response(text="OK"))
+        runner = web.AppRunner(app)
+        await runner.setup()
+        port = int(os.environ.get("PORT", 10000))
+        await web.TCPSite(runner, "0.0.0.0", port).start()
+        logger.info(f"Web server is up on port {port}")
+    except Exception as e:
+        logger.error(f"Failed to start web server: {e}")
+    
+    logger.info("Starting scheduler...")
     asyncio.create_task(send_scheduled())
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+    
+    logger.info(f"Connecting to Telegram (Token: {BOT_TOKEN[:10]}...)...")
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("🚀 Polling started. Ready for messages!")
+        await dp.start_polling(bot)
+    except Exception as e:
+        logger.error(f"Telegram polling error: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
