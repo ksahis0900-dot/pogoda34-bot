@@ -417,15 +417,60 @@ async def cmd_start(message: types.Message):
     )
     
     try:
-        await message.answer_photo(
-            photo=FSInputFile(photo_url),
-            caption=txt,
-            reply_markup=city_keyboard(),
-            parse_mode="HTML"
-        )
+        photo_url = get_random_photo("lat=48.708&lon=44.513") # Volgograd
+        if photo_url:
+            await message.answer_photo(
+                photo=FSInputFile(photo_url),
+                caption=txt,
+                reply_markup=city_keyboard(),
+                parse_mode="HTML"
+            )
+        else:
+            await message.answer(txt, reply_markup=city_keyboard(), parse_mode="HTML")
     except Exception as e:
         logger.error(f"Error sending start photo: {e}")
         await message.answer(txt, reply_markup=city_keyboard(), parse_mode="HTML")
+
+# DEBUG COMMANDS
+@dp.message(Command("list_files"))
+async def cmd_list_files(message: types.Message):
+    if str(message.from_user.id) != os.getenv("admin_id"):
+        return
+    
+    try:
+        report = [f"BASE_DIR: {BASE_DIR}", f"IMAGES_DIR: {IMAGES_DIR}", f"Exists: {os.path.exists(IMAGES_DIR)}"]
+        if os.path.exists(IMAGES_DIR):
+            files = os.listdir(IMAGES_DIR)
+            report.append(f"Files ({len(files)}): {', '.join(files[:20])}")
+        
+        await message.answer("\n".join(report))
+    except Exception as e:
+        await message.answer(f"Error: {e}")
+
+@dp.message(Command("debug_photo"))
+async def cmd_debug_photo(message: types.Message):
+    if str(message.from_user.id) != os.getenv("admin_id"):
+        return
+    
+    test_file = "volgograd.jpg"
+    paths_to_try = [
+        os.path.join(IMAGES_DIR, test_file),
+        os.path.join(os.getcwd(), "images", test_file),
+        os.path.join(os.path.dirname(__file__), "images", test_file),
+        f"images/{test_file}"
+    ]
+    
+    results = []
+    for p in paths_to_try:
+        exists = os.path.exists(p)
+        results.append(f"Path: {p}\nExists: {exists}")
+        if exists:
+            try:
+                await message.answer_photo(FSInputFile(p), caption=f"Success: {p}")
+            except Exception as e:
+                results.append(f"Send Error: {e}")
+    
+    await message.answer("\n\n".join(results))
 
 # Callbacks
 @dp.callback_query(F.data == "back_home")
