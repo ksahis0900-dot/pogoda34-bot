@@ -3,16 +3,8 @@ import logging
 import os
 import random
 
-# Определяем абсолютный путь к папке с картинками
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PHOTOS_DIR = os.path.join(BASE_DIR, "images")
-
-# DEBUG: Проверка наличия папки
-if os.path.exists(PHOTOS_DIR):
-    print(f"DEBUG: Photos directory found at: {PHOTOS_DIR}")
-    print(f"DEBUG: Files: {os.listdir(PHOTOS_DIR)}")
-else:
-    print(f"ERROR: Photos directory NOT found at: {PHOTOS_DIR}")
+# Определяем абсолютный путь к папке с картинками (для совместимости)
+# (Удалено лишнее, используем просто относительные пути)
 
 from datetime import datetime, timezone
 
@@ -83,17 +75,32 @@ CITY_PHOTOS = {
     ]
 }
 
-def get_random_photo(coords_key: str) -> str:
-    """Возвращает путь к фото (относительный или абсолютный)"""
+def get_random_photo(coords_key: str) -> str | None:
+    """Возвращает путь к фото, проверяя существование файла.
+    Если файл не найден, пытается вернуть дефолтное фото.
+    Если и дефолтное не найдено, возвращает None."""
+    
     # Берем список путей
     photo_list = CITY_PHOTOS.get(coords_key, CITY_PHOTOS["default"])
+    if not photo_list:
+        return None
+        
     # Выбираем случайный
     path = random.choice(photo_list)
-    # Возвращаем абсолютный путь для надежности
-    if os.path.isabs(path):
-        return path
-    else:
-        return os.path.abspath(path)
+    
+    # Получаем абсолютный путь
+    abs_path = os.path.abspath(path)
+    
+    # Проверяем существование
+    if not os.path.exists(abs_path):
+        print(f"ERROR: Photo file NOT found: {abs_path}")
+        # Если текущий ключ не "default", пробуем дефолтное фото
+        if coords_key != "default":
+             return get_random_photo("default") # Рекурсивно пробуем дефолт
+        # Если это уже был "default" или рекурсивный вызов вернул None, то возвращаем None
+        return None
+        
+    return abs_path
 
 # -------------------------------------------------------------------
 #  БАЗА ДАННЫХ
