@@ -34,13 +34,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 IMAGES_DIR = os.path.join(BASE_DIR, "images")
 
 def get_photo_data(coords_key: str):
-    """Находит фото на диске. Если его нет или оно битое - возвращает URL-fallback."""
-    # Словарь URL-заглушек на крайний случай (красивые фото городов)
-    URL_FALLBACKS = {
-        "lat=48.708&lon=44.513": "https://images.unsplash.com/photo-1561564752-19816503704d?w=800", # Volgograd
-        "default": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800"
-    }
-    
     CITY_PHOTOS = {
         "lat=48.708&lon=44.513": ["volgograd.jpg"],
         "lat=48.818&lon=44.757": ["volzhsky.jpg"],
@@ -64,37 +57,20 @@ def get_photo_data(coords_key: str):
         "lat=48.805&lon=44.476": ["volgograd.jpg"],
         "default": ["volgograd.jpg"]
     }
-    
     filenames = CITY_PHOTOS.get(coords_key, CITY_PHOTOS["default"])
     filename = random.choice(filenames)
     path = os.path.join(IMAGES_DIR, filename)
-    
-    if os.path.exists(path) and os.path.getsize(path) > 1000:
+    if os.path.exists(path):
         try:
             with open(path, 'rb') as f:
-                data = f.read()
-                logger.info(f"OK: {filename} ({len(data)} bytes)")
-                return BufferedInputFile(data, filename=filename)
-        except Exception as e:
-            logger.error(f"Read error {filename}: {e}")
+                return BufferedInputFile(f.read(), filename=filename)
+        except Exception: pass
     
-    # Если локального файла нет, возвращаем URL (чтобы бот не падал)
-    fallback_url = URL_FALLBACKS.get(coords_key, URL_FALLBACKS["default"])
-    logger.warning(f"Using URL fallback for {coords_key}")
-    return fallback_url
-
-def check_images():
-    """Проверка файлов с размерами"""
-    logger.info(f"Checking images in {IMAGES_DIR}...")
-    if os.path.exists(IMAGES_DIR):
-        files = os.listdir(IMAGES_DIR)
-        for f in files[:5]: # Проверим первые 5 для примера в логах
-            p = os.path.join(IMAGES_DIR, f)
-            size = os.path.getsize(p) if os.path.isfile(p) else "DIR"
-            logger.info(f" - {f}: {size} bytes")
-        logger.info(f"Total files: {len(files)}")
-    else:
-        logger.error("IMAGES DIRECTORY MISSING!")
+    v_path = os.path.join(IMAGES_DIR, "volgograd.jpg")
+    if os.path.exists(v_path):
+        with open(v_path, 'rb') as f:
+            return BufferedInputFile(f.read(), filename="volgograd.jpg")
+    return None
 
 # Инициализация
 bot = Bot(token=BOT_TOKEN)
@@ -151,7 +127,7 @@ CITIES = {
     "lat=48.712&lon=44.572": {"name": "Краснослободск", "emoji": "🚤"}, 
 }
 
-# --- ПОГОДА API ---
+# --- API ---
 async def get_weather_data(lat, lon):
     url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={OPENWEATHER_API_KEY}&units=metric&lang=ru"
     async with aiohttp.ClientSession() as session:
@@ -164,7 +140,6 @@ async def get_forecast_data(lat, lon):
         async with session.get(url) as resp:
             return await resp.json() if resp.status == 200 else None
 
-# --- ФОРМАТИРОВАНИЕ ---
 def get_weather_emoji(wid):
     if 200 <= wid <= 232: return "⛈ ГРОЗА"
     if 300 <= wid <= 321: return "🌧 МОРОСЬ"
@@ -182,16 +157,14 @@ def format_weather(data, city_name):
     t, f = round(data['main']['temp']), round(data['main']['feels_like'])
     desc = data['weather'][0]['description'].capitalize()
     wid = data['weather'][0]['id']
-    msg = (
-        f"📍 <b>{city_name.upper()}</b>\n"
-        f"➖➖➖➖➖➖➖➖➖➖\n\n"
-        f"<b>{get_weather_emoji(wid)} {desc}</b>\n\n"
-        f"🌡 <b>Температура:</b> {t:+d}°C\n"
-        f"🤔 Ощущается как: {f:+d}°C\n\n"
-        f"💨 Ветер: {data['wind']['speed']} м/с\n"
-        f"💧 Влажность: {data['main']['humidity']}%\n"
-        f"➖➖➖➖➖➖➖➖➖➖"
-    )
+    msg = (f"📍 <b>{city_name.upper()}</b>\n"
+           f"➖➖➖➖➖➖➖➖➖➖\n\n"
+           f"<b>{get_weather_emoji(wid)} {desc}</b>\n\n"
+           f"🌡 <b>Температура:</b> {t:+d}°C\n"
+           f"🤔 Ощущается как: {f:+d}°C\n\n"
+           f"💨 Ветер: {data['wind']['speed']} м/с\n"
+           f"💧 Влажность: {data['main']['humidity']}%\n"
+           f"➖➖➖➖➖➖➖➖➖➖")
     return msg
 
 def format_forecast_msg(data, city_name):
@@ -203,12 +176,11 @@ def format_forecast_msg(data, city_name):
         if day not in daily: daily[day] = item
     for d, it in list(daily.items())[:5]:
         t = round(it['main']['temp'])
-        desc = it['weather'][0]['description']
-        msg += f"\n<b>{d}</b>: {t:+d}°C, {desc}"
+        msg += f"\n<b>{d}</b>: {t:+d}°C, {it['weather'][0]['description']}"
     return msg
 
 # --- КЛАВИАТУРЫ ---
-def menu_kb():
+def main_kb():
     builder = InlineKeyboardBuilder()
     for k, v in CITIES.items():
         builder.button(text=f"{v['emoji']} {v['name']}", callback_data=f"w_{k}")
@@ -223,22 +195,35 @@ def weather_kb(key):
     builder.adjust(1)
     return builder.as_markup()
 
-def back_kb():
-    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="back_home")]])
+def sub_menu_kb(is_subbed, city_name=None):
+    builder = InlineKeyboardBuilder()
+    if is_subbed:
+        builder.button(text=f"✅ Вы подписаны на: {city_name}", callback_data="ignore")
+        builder.button(text="❌ Отписаться", callback_data="unsub_exec")
+    else:
+        builder.button(text="🔔 Подписаться на город", callback_data="sub_pick")
+    builder.button(text="🔙 Назад", callback_data="back_home")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def sub_pick_kb():
+    builder = InlineKeyboardBuilder()
+    for k, v in CITIES.items():
+        builder.button(text=v['name'], callback_data=f"sset_{k}")
+    builder.adjust(2)
+    builder.row(InlineKeyboardButton(text="🔙 Назад", callback_data="sub_menu"))
+    return builder.as_markup()
 
 # --- ХЕНДЛЕРЫ ---
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    logger.info(f"START from {message.from_user.id}")
     photo = get_photo_data("default")
-    txt = "🌤 <b>ПОГОДА 34</b>\nВолгоградская область. Выбери город:"
-    if photo:
-        await message.answer_photo(photo=photo, caption=txt, reply_markup=menu_kb(), parse_mode="HTML")
-    else:
-        await message.answer(txt, reply_markup=menu_kb(), parse_mode="HTML")
+    txt = "🌤 <b>ПОГОДА 34</b>\nВыбери город:"
+    if photo: await message.answer_photo(photo, caption=txt, reply_markup=main_kb(), parse_mode="HTML")
+    else: await message.answer(txt, reply_markup=main_kb(), parse_mode="HTML")
 
 @dp.callback_query(F.data == "back_home")
-async def cb_home(callback: types.CallbackQuery):
+async def cb_back(callback: types.CallbackQuery):
     await callback.message.delete()
     await cmd_start(callback.message)
     await callback.answer()
@@ -252,10 +237,8 @@ async def cb_weather(callback: types.CallbackQuery):
     msg = format_weather(data, city['name'])
     photo = get_photo_data(key)
     await callback.message.delete()
-    if photo:
-        await callback.message.answer_photo(photo=photo, caption=msg, reply_markup=weather_kb(key), parse_mode="HTML")
-    else:
-        await callback.message.answer(msg, reply_markup=weather_kb(key), parse_mode="HTML")
+    if photo: await callback.message.answer_photo(photo, caption=msg, reply_markup=weather_kb(key), parse_mode="HTML")
+    else: await callback.message.answer(msg, reply_markup=weather_kb(key), parse_mode="HTML")
 
 @dp.callback_query(F.data.startswith("f_"))
 async def cb_forecast(callback: types.CallbackQuery):
@@ -264,34 +247,41 @@ async def cb_forecast(callback: types.CallbackQuery):
     lat_lon = key.replace("lat=","").replace("lon=","").split("&")
     data = await get_forecast_data(lat_lon[0], lat_lon[1])
     msg = format_forecast_msg(data, city['name'])
-    await callback.message.delete()
     photo = get_photo_data(key)
-    if photo:
-        await callback.message.answer_photo(photo=photo, caption=msg, reply_markup=back_kb(), parse_mode="HTML")
-    else:
-        await callback.message.answer(msg, reply_markup=back_kb(), parse_mode="HTML")
+    await callback.message.delete()
+    if photo: await callback.message.answer_photo(photo, caption=msg, reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data=f"w_{key}")]]), parse_mode="HTML")
+    else: await callback.message.answer(msg, reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data=f"w_{key}")]]), parse_mode="HTML")
 
 @dp.callback_query(F.data == "sub_menu")
-async def cb_sub(callback: types.CallbackQuery):
+async def cb_sub_menu(callback: types.CallbackQuery):
     sub = await get_subscription(callback.from_user.id)
-    txt = f"📬 <b>Рассылка</b>\n\n"
-    if sub: txt += f"Вы подписаны на: <b>{sub[1]}</b>"
-    else: txt += "Вы не подписаны. Выберите город в меню, чтобы получать погоду утром и вечером."
-    
-    kb = InlineKeyboardBuilder()
-    if sub: kb.button(text="❌ Отписаться", callback_data="unsub")
-    else: kb.button(text="🔔 Подписаться (тек. город)", callback_data="sub_now") # Для простоты
-    kb.button(text="🔙 Назад", callback_data="back_home")
-    kb.adjust(1)
-    
-    await callback.message.edit_caption(caption=txt, reply_markup=kb.as_markup(), parse_mode="HTML")
+    txt = "📬 <b>Рассылка погоды</b>\n\nПолучайте прогноз в 07:00 и 18:00 МСК."
+    await callback.message.delete()
+    await callback.message.answer(txt, reply_markup=sub_menu_kb(sub is not None, sub[1] if sub else None), parse_mode="HTML")
 
-# --- СЕРВЕР И ПЛАНИРОВЩИК ---
-async def send_scheduled():
+@dp.callback_query(F.data == "sub_pick")
+async def cb_sub_pick(callback: types.CallbackQuery):
+    await callback.message.edit_reply_markup(reply_markup=sub_pick_kb())
+
+@dp.callback_query(F.data.startswith("sset_"))
+async def cb_sub_set(callback: types.CallbackQuery):
+    key = callback.data.split("sset_")[1]
+    await add_subscription(callback.from_user.id, key, CITIES[key]['name'])
+    await callback.answer(f"✅ Подписка на {CITIES[key]['name']} оформлена!", show_alert=True)
+    await cb_sub_menu(callback)
+
+@dp.callback_query(F.data == "unsub_exec")
+async def cb_unsub(callback: types.CallbackQuery):
+    await remove_subscription(callback.from_user.id)
+    await callback.answer("❌ Вы отписались", show_alert=True)
+    await cb_sub_menu(callback)
+
+# --- ПЛАНИРОВЩИК ---
+async def scheduler():
     while True:
-        now = datetime.now(timezone.utc)
-        h = (now.hour + 3) % 24
-        if (h == 7 or h == 18) and now.minute == 0:
+        h = (datetime.now(timezone.utc).hour + 3) % 24
+        m = datetime.now(timezone.utc).minute
+        if (h == 7 or h == 18) and m == 0:
             subs = await get_all_subscribers()
             for uid, key, name in subs:
                 try:
@@ -299,42 +289,28 @@ async def send_scheduled():
                     data = await get_weather_data(lat_lon[0], lat_lon[1])
                     if data:
                         photo = get_photo_data(key)
-                        msg = f"📬 <b>Утренняя рассылка</b>\n\n{format_weather(data, name)}"
+                        msg = f"🔔 <b>Ежедневная рассылка</b>\n\n{format_weather(data, name)}"
                         if photo: await bot.send_photo(uid, photo, caption=msg, parse_mode="HTML")
                         else: await bot.send_message(uid, msg, parse_mode="HTML")
                 except: pass
             await asyncio.sleep(61)
         await asyncio.sleep(30)
 
+# --- СЕРВЕР ---
+async def handle_ping(request):
+    logger.info("Keep-alive ping received!")
+    return web.Response(text="I am awake!")
+
 async def main():
-    logger.info("--- STARTING BOT ENVIRONMENT CHECK ---")
-    check_images()
-    
-    logger.info("Initializing database...")
     await init_db()
-    
-    logger.info("Starting web server...")
-    try:
-        app = web.Application()
-        app.router.add_get("/", lambda r: web.Response(text="OK"))
-        runner = web.AppRunner(app)
-        await runner.setup()
-        port = int(os.environ.get("PORT", 10000))
-        await web.TCPSite(runner, "0.0.0.0", port).start()
-        logger.info(f"Web server is up on port {port}")
-    except Exception as e:
-        logger.error(f"Failed to start web server: {e}")
-    
-    logger.info("Starting scheduler...")
-    asyncio.create_task(send_scheduled())
-    
-    logger.info(f"Connecting to Telegram (Token: {BOT_TOKEN[:10]}...)...")
-    try:
-        await bot.delete_webhook(drop_pending_updates=True)
-        logger.info("🚀 Polling started. Ready for messages!")
-        await dp.start_polling(bot)
-    except Exception as e:
-        logger.error(f"Telegram polling error: {e}")
+    app = web.Application()
+    app.router.add_get("/", handle_ping)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    await web.TCPSite(runner, "0.0.0.0", int(os.environ.get("PORT", 10000))).start()
+    asyncio.create_task(scheduler())
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
