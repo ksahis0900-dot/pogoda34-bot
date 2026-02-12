@@ -434,9 +434,6 @@ async def cmd_start(message: types.Message):
 # DEBUG COMMANDS
 @dp.message(Command("list_files"))
 async def cmd_list_files(message: types.Message):
-    if str(message.from_user.id) != os.getenv("admin_id"):
-        return
-    
     try:
         report = [f"BASE_DIR: {BASE_DIR}", f"IMAGES_DIR: {IMAGES_DIR}", f"Exists: {os.path.exists(IMAGES_DIR)}"]
         if os.path.exists(IMAGES_DIR):
@@ -449,9 +446,6 @@ async def cmd_list_files(message: types.Message):
 
 @dp.message(Command("debug_photo"))
 async def cmd_debug_photo(message: types.Message):
-    if str(message.from_user.id) != os.getenv("admin_id"):
-        return
-    
     test_file = "volgograd.jpg"
     paths_to_try = [
         os.path.join(IMAGES_DIR, test_file),
