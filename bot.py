@@ -3,13 +3,16 @@ import logging
 import os
 import random
 
-# DEBUG: List files to ensure deployment success
-print("--- DEBUG: CHECKING IMAGES FOLDER ---")
-if os.path.exists("images"):
-    print(f"Files found: {os.listdir('images')}")
+# Определяем абсолютный путь к папке с картинками
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PHOTOS_DIR = os.path.join(BASE_DIR, "images")
+
+# DEBUG: Проверка наличия папки
+if os.path.exists(PHOTOS_DIR):
+    print(f"DEBUG: Photos directory found at: {PHOTOS_DIR}")
+    print(f"DEBUG: Files: {os.listdir(PHOTOS_DIR)}")
 else:
-    print("ERROR: 'images' folder does NOT exist!")
-print("-------------------------------------")
+    print(f"ERROR: Photos directory NOT found at: {PHOTOS_DIR}")
 
 from datetime import datetime, timezone
 
@@ -49,41 +52,42 @@ dp = Dispatcher()
 DB_NAME = "subscribers.db"
 
 # -------------------------------------------------------------------
-#  ФОТО ГОРОДОВ (Ссылки на красивые реальные фото)
+#  ФОТО ГОРОДОВ (Имена файлов в папке images)
 # -------------------------------------------------------------------
 CITY_PHOTOS = {
-    # Основные города (используем новые сжатые фото из папки images)
-    "lat=48.708&lon=44.513": ["images/volgograd.jpg"],       # Волгоград
-    "lat=48.818&lon=44.757": ["images/volzhsky.jpg"],        # Волжский
-    "lat=50.083&lon=45.4":   ["images/kamyshin.jpg"],         # Камышин
-    "lat=50.067&lon=43.233": ["images/mikhaylovka.jpg"],      # Михайловка
-    "lat=50.8&lon=42.0":     ["images/uryupinsk.jpg"],        # Урюпинск
-    "lat=49.773&lon=43.655": ["images/frolovo.jpg"],         # Фролово
-    "lat=48.691&lon=43.526": ["images/kalach.jpg"],   # Калач-на-Дону
-    "lat=47.583&lon=43.133": ["images/kotelnikovo.jpg"],    # Котельниково (добавим в меню ниже)
-    "lat=50.315&lon=44.807": ["images/kotovo.jpg"],          # Котово
-    "lat=48.608&lon=42.85":  ["images/surovikino.jpg"],     # Суровикино
-    "lat=48.712&lon=44.572": ["images/krasnoslobodsk.jpg"],  # Краснослободск
-    "lat=50.981&lon=44.767": ["images/zhirnovsk.jpg"],       # Жирновск
-    "lat=50.533&lon=42.667": ["images/novoanninsky.jpg"],   # Новоаннинский
-    "lat=50.045&lon=46.883": ["images/pallasovka.jpg"],     # Палласовка
-    "lat=49.058&lon=44.829": ["images/dubovka.jpg"],        # Дубовка
-    "lat=50.028&lon=45.46":  ["images/nikolaevsk.jpg"],     # Николаевск
-    "lat=48.705&lon=45.202": ["images/leninsk.jpg"],        # Ленинск
-    "lat=50.137&lon=45.211": ["images/petrov_val.jpg"],     # Петров Вал
-    "lat=49.583&lon=42.733": ["images/serafimovich.jpg"],    # Серафимович hiding
-    "lat=48.805&lon=44.476": ["images/volgograd.jpg"],       # Городище (рядом с Волгоградом) - используем Волгоград для надежности
+    # Основные города
+    "lat=48.708&lon=44.513": ["volgograd.jpg"],       # Волгоград
+    "lat=48.818&lon=44.757": ["volzhsky.jpg"],        # Волжский
+    "lat=50.083&lon=45.4":   ["kamyshin.jpg"],         # Камышин
+    "lat=50.067&lon=43.233": ["mikhaylovka.jpg"],      # Михайловка
+    "lat=50.8&lon=42.0":     ["uryupinsk.jpg"],        # Урюпинск
+    "lat=49.773&lon=43.655": ["frolovo.jpg"],         # Фролово
+    "lat=48.691&lon=43.526": ["kalach.jpg"],   # Калач-на-Дону
+    "lat=47.583&lon=43.133": ["kotelnikovo.jpg"],    # Котельниково
+    "lat=50.315&lon=44.807": ["kotovo.jpg"],          # Котово
+    "lat=48.608&lon=42.85":  ["surovikino.jpg"],     # Суровикино
+    "lat=48.712&lon=44.572": ["krasnoslobodsk.jpg"],  # Краснослободск
+    "lat=50.981&lon=44.767": ["zhirnovsk.jpg"],       # Жирновск
+    "lat=50.533&lon=42.667": ["novoanninsky.jpg"],   # Новоаннинский
+    "lat=50.045&lon=46.883": ["pallasovka.jpg"],     # Палласовка
+    "lat=49.058&lon=44.829": ["dubovka.jpg"],        # Дубовка
+    "lat=50.028&lon=45.46":  ["nikolaevsk.jpg"],     # Николаевск
+    "lat=48.705&lon=45.202": ["leninsk.jpg"],        # Ленинск
+    "lat=50.137&lon=45.211": ["petrov_val.jpg"],     # Петров Вал
+    "lat=49.583&lon=42.733": ["serafimovich.jpg"],    # Серафимович
+    "lat=48.805&lon=44.476": ["volgograd.jpg"],       # Городище (используем Волгоград)
 
     # Дефолтное фото
     "default": [
-        "images/volgograd.jpg", "images/kamyshin.jpg"
+        "volgograd.jpg", "kamyshin.jpg"
     ]
 }
 
 def get_random_photo(coords_key: str) -> str:
-    """Возвращает путь к фото конкретного города"""
-    # Если фото нет в списке - берем дефолт
-    return random.choice(CITY_PHOTOS.get(coords_key, CITY_PHOTOS["default"]))
+    """Возвращает АБСОЛЮТНЫЙ путь к фото"""
+    filenames = CITY_PHOTOS.get(coords_key, CITY_PHOTOS["default"])
+    filename = random.choice(filenames)
+    return os.path.join(PHOTOS_DIR, filename)
 
 # -------------------------------------------------------------------
 #  БАЗА ДАННЫХ
