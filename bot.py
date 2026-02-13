@@ -286,8 +286,12 @@ async def mailing_task():
 
 async def main():
     await init_db()
+    # Web server for health checks
     app = web.Application()
-    app.router.add_get("/", lambda r: web.Response(text="Bot is running!"))
+    async def health_check(request):
+        logger.info("📡 Keep-alive ping received!")
+        return web.Response(text="Bot is running!")
+    app.router.add_get("/", health_check)
     runner = web.AppRunner(app)
     await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", int(os.environ.get("PORT", 10000))).start()
