@@ -14,7 +14,10 @@ from aiogram.types import (
     BotCommand
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.webhook.asyncio_server import SimpleRequestHandler, setup_application
+try:
+    from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+except ImportError:
+    from aiogram.webhook.asyncio_server import SimpleRequestHandler, setup_application
 from dotenv import load_dotenv
 import aiohttp
 import aiosqlite
