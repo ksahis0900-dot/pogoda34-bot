@@ -64,8 +64,8 @@ def get_photo_file(key: str):
         "lat=50.533&lon=42.667": "novoanninsky.jpg", "lat=50.045&lon=46.883": "pallasovka.jpg",
         "lat=49.058&lon=44.829": "dubovka.jpg", "lat=50.028&lon=45.46": "nikolaevsk.jpg",
         "lat=48.705&lon=45.202": "leninsk.jpg", "lat=50.137&lon=45.211": "petrov_val.jpg",
-        "lat=49.583&lon=42.733": "serafimovich.jpg"
-        # Городище убрано, чтобы не показывать Волгоград
+        "lat=49.583&lon=42.733": "serafimovich.jpg",
+        "lat=48.805&lon=44.476": "gorodishche.png"
     }
     
     filename = MANUAL.get(key)
