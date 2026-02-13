@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import random
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import aiohttp
 import aiosqlite
@@ -35,7 +35,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "subscribers.db")
 IMAGES_DIR = os.path.join(BASE_DIR, "images")
 
-# --- ПОЛНЫЙ СПИСОК ГОРОДОВ ---
 CITIES = {
     "lat=48.708&lon=44.513": {"name": "Волгоград", "emoji": "🏙"}, "lat=48.818&lon=44.757": {"name": "Волжский", "emoji": "⚡️"},
     "lat=50.083&lon=45.4":   {"name": "Камышин", "emoji": "🍉"}, "lat=50.067&lon=43.233": {"name": "Михайловка", "emoji": "🚜"},
@@ -65,18 +64,25 @@ def get_photo_file(key: str):
         "lat=50.533&lon=42.667": "novoanninsky.jpg", "lat=50.045&lon=46.883": "pallasovka.jpg",
         "lat=49.058&lon=44.829": "dubovka.jpg", "lat=50.028&lon=45.46": "nikolaevsk.jpg",
         "lat=48.705&lon=45.202": "leninsk.jpg", "lat=50.137&lon=45.211": "petrov_val.jpg",
-        "lat=49.583&lon=42.733": "serafimovich.jpg", "lat=48.805&lon=44.476": "volgograd.jpg"
+        "lat=49.583&lon=42.733": "serafimovich.jpg"
+        # Городище убрано, чтобы не показывать Волгоград
     }
     
-    filename = MANUAL.get(key, "volgograd.jpg")
-    path = os.path.join(IMAGES_DIR, filename)
-    
-    if os.path.exists(path):
-        return types.FSInputFile(path)
+    filename = MANUAL.get(key)
+    if filename:
+        path = os.path.join(IMAGES_DIR, filename)
+        if os.path.exists(path):
+            return types.FSInputFile(path)
     return None
 
 async def fetch_weather(lat, lon):
     url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={OPENWEATHER_API_KEY}&units=metric&lang=ru"
+    async with aiohttp.ClientSession() as s:
+        async with s.get(url) as r:
+            return await r.json() if r.status == 200 else None
+
+async def fetch_forecast(lat, lon):
+    url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={OPENWEATHER_API_KEY}&units=metric&lang=ru"
     async with aiohttp.ClientSession() as s:
         async with s.get(url) as r:
             return await r.json() if r.status == 200 else None
@@ -87,6 +93,10 @@ def format_weather(d, name):
     desc = d['weather'][0]['description'].capitalize()
     hum = d['main']['humidity']
     wind = d['wind']['speed']
+    
+    # Исправление времени: Сервер UTC -> UTC+3 (МСК)
+    msk_time = datetime.now(timezone.utc) + timedelta(hours=3)
+    
     return (
         f"📍 <b>{name.upper()}</b>\n"
         f"━━━━━━━━━━━━━━━\n"
@@ -94,8 +104,37 @@ def format_weather(d, name):
         f"💨 Ветер: {wind} м/с\n"
         f"💧 Влажность: {hum}%\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"🕒 <i>Обновлено: {datetime.now().strftime('%H:%M')}</i>"
+        f"🕒 <i>Обновлено: {msk_time.strftime('%H:%M')} (МСК)</i>"
     )
+
+def format_forecast(data, name):
+    if not data: return "⚠️ Не удалось получить прогноз"
+    
+    forecast_text = f"📅 <b>ПРОГНОЗ НА 5 ДНЕЙ - {name.upper()}</b>\n\n"
+    seen_dates = set()
+    
+    for item in data['list']:
+        # Получаем дату и время прогноза (API отдает в UTC)
+        # item['dt_txt'] пример: "2026-02-14 12:00:00"
+        dt = datetime.strptime(item['dt_txt'], "%Y-%m-%d %H:%M:%S")
+        date_str = dt.strftime("%d.%m")
+        
+        # Берем прогноз на ~15:00 по местному времени (UTC 12:00)
+        if dt.hour == 12:
+            temp = round(item['main']['temp'])
+            desc = item['weather'][0]['description']
+            icon = item['weather'][0]['main']
+            
+            emoji = "🌤"
+            if "Rain" in icon: emoji = "🌧"
+            elif "Cloud" in icon: emoji = "☁️"
+            elif "Clear" in icon: emoji = "☀️"
+            elif "Snow" in icon: emoji = "❄️"
+            
+            forecast_text += f"🔹 <b>{date_str}</b>: {emoji} {temp:+d}°C, {desc}\n"
+            seen_dates.add(date_str)
+            
+    return forecast_text + "\n⚡️ <i>POGODA 34</i>"
 
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
@@ -111,7 +150,7 @@ async def start_handler(m: types.Message):
     kb.adjust(2).row(InlineKeyboardButton(text="📬 Настроить рассылку", callback_data="mailing_menu"))
     
     txt = "🌤 <b>ДОБРО ПОЖАЛОВАТЬ В POGODA 34</b>\n\nВыберите ваш город ниже:"
-    photo = get_photo_file("lat=48.708&lon=44.513") # Волгоград по умолчанию
+    photo = get_photo_file("lat=48.708&lon=44.513")
     
     if photo:
         await m.answer_photo(photo, caption=txt, reply_markup=kb.as_markup(), parse_mode="HTML")
@@ -128,11 +167,11 @@ async def weather_cb(c: types.CallbackQuery):
     data = await fetch_weather(coords[0], coords[1])
     
     kb = InlineKeyboardBuilder()
+    kb.button(text="📅 Прогноз на 5 дней", callback_data=f"f_{key}")
     kb.button(text="🔙 Меню", callback_data="home")
+    kb.adjust(1)
     
     photo = get_photo_file(key)
-    
-    # Удаляем старое сообщение чтобы прислать новое с фото (или обновляем текст если фото нет)
     await c.message.delete()
     
     if photo:
@@ -140,10 +179,30 @@ async def weather_cb(c: types.CallbackQuery):
     else:
         await c.message.answer(format_weather(data, city['name']), reply_markup=kb.as_markup(), parse_mode="HTML")
 
+@dp.callback_query(F.data.startswith("f_"))
+async def forecast_cb(c: types.CallbackQuery):
+    key = c.data.split("f_")[1]
+    city = CITIES[key]
+    await c.answer(f"Загружаю прогноз: {city['name']}")
+    
+    coords = key.replace("lat=","").replace("lon=","").split("&")
+    # Логика получения прогноза
+    data = await fetch_forecast(coords[0], coords[1])
+    
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🔙 Назад к погоде", callback_data=f"w_{key}")
+    kb.button(text="🏠 Главное меню", callback_data="home")
+    kb.adjust(1)
+    
+    # Для прогноза фото не шлем, только текст
+    await c.message.delete()
+    await c.message.answer(format_forecast(data, city['name']), reply_markup=kb.as_markup(), parse_mode="HTML")
+
+
 @dp.callback_query(F.data == "home")
 async def home_cb(c: types.CallbackQuery):
     await c.answer()
-    await c.message.delete() # Удаляем чтобы не дублировать
+    await c.message.delete()
     await start_handler(c.message)
 
 @dp.callback_query(F.data == "mailing_menu")
@@ -154,15 +213,14 @@ async def mailing_menu_cb(c: types.CallbackQuery):
     
     kb = InlineKeyboardBuilder()
     if row:
-        txt = f"📬 <b>РАССЫЛКА</b>\n\nВы подписаны на: <b>{row[0]}</b>"
+        txt = f"📬 <b>РАССЫЛКА</b>\n\nВы подписаны на: <b>{row[0]}</b>\nВремя: 08:00 и 18:00 МСК"
         kb.button(text="❌ Отписаться", callback_data="unsub")
     else:
-        txt = "📬 <b>РАССЫЛКА</b>\n\nПолучайте прогноз в 07:00 и 18:00 МСК."
+        txt = "📬 <b>РАССЫЛКА</b>\n\nПолучайте прогноз в 08:00 и 18:00 МСК."
         kb.button(text="🔔 Подписаться", callback_data="sub_list")
         
     kb.row(InlineKeyboardButton(text="🔙 Назад", callback_data="home"))
     
-    # Пробуем редактировать, если это не фото. Если фото - удаляем и шлем текст.
     try:
         await c.message.edit_text(txt, reply_markup=kb.as_markup(), parse_mode="HTML")
     except:
@@ -201,7 +259,8 @@ async def mailing_task():
         try:
             now = datetime.now(timezone.utc)
             h = (now.hour + 3) % 24  # МСК
-            if h in [7, 18] and now.minute == 0:
+            # Время изменено на 08:00 и 18:00
+            if h in [8, 18] and now.minute == 0:
                 async with aiosqlite.connect(DB_PATH) as db:
                     async with db.execute("SELECT uid, key, cityName FROM subs") as cur:
                         users = await cur.fetchall()
@@ -211,13 +270,14 @@ async def mailing_task():
                         data = await fetch_weather(coords[0], coords[1])
                         photo = get_photo_file(key)
                         if data:
+                            caption_text = f"🔔 <b>УТРЕННЯЯ РАССЫЛКА</b>\n\n{format_weather(data, name)}" if h == 8 else f"🔔 <b>ВЕЧЕРНЯЯ РАССЫЛКА</b>\n\n{format_weather(data, name)}"
                             if photo:
-                                await bot.send_photo(uid, photo, caption=f"🔔 <b>УТРЕННЯЯ РАССЫЛКА</b>\n\n{format_weather(data, name)}", parse_mode="HTML")
+                                await bot.send_photo(uid, photo, caption=caption_text, parse_mode="HTML")
                             else:
-                                await bot.send_message(uid, f"🔔 <b>УТРЕННЯЯ РАССЫЛКА</b>\n\n{format_weather(data, name)}", parse_mode="HTML")
-                        await asyncio.sleep(0.1) # Пауза между сообщениями
+                                await bot.send_message(uid, caption_text, parse_mode="HTML")
+                        await asyncio.sleep(0.1)
                     except: continue
-                await asyncio.sleep(60) # Спим минуту чтобы не слать дважды
+                await asyncio.sleep(60) 
         except Exception as e:
             logger.error(f"Mailing error: {e}")
         await asyncio.sleep(30)
@@ -231,7 +291,7 @@ async def self_ping_task():
                     logger.info(f"Self-ping status: {response.status}")
         except Exception as e:
             logger.error(f"Self-ping failed: {e}")
-        await asyncio.sleep(600) # Каждые 10 минут
+        await asyncio.sleep(600) 
 
 # --- SERVER ---
 async def on_startup(bot: Bot):
