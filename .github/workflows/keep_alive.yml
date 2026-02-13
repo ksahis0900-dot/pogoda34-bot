@@ -2,8 +2,8 @@ name: Keep Alive
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Run every 5 minutes
-  workflow_dispatch:      # Allow manual run
+    - cron: '*/10 * * * *'  # Раз в 10 минут (хватит, чтобы не уснуть)
+  workflow_dispatch:        # Можно запустить вручную
 
 jobs:
   ping:
@@ -11,5 +11,5 @@ jobs:
     steps:
       - name: Ping Render Service
         run: |
-          curl -I https://pogoda34-bot.onrender.com/
-          echo "Pinged pogoda34-bot.onrender.com"
+          curl -I https://pogoda34-bot-1pogoda34-bot.onrender.com/
+          echo "Pinged pogoda34-bot-1pogoda34-bot.onrender.com"
