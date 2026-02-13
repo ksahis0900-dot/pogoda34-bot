@@ -24,7 +24,7 @@ from aiohttp import web
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8527373588:AAGcjWQtX7VfMvPe4p3bBDJ-0-DUpasy-m8")
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "bafd7faf0a523d40f16892a82b062065")
-RENDER_URL = os.getenv("RENDER_URL", "https://pogoda34-bot.onrender.com")
+RENDER_URL = os.getenv("RENDER_URL", "https://pogoda34-bot-1pogoda34-bot.onrender.com")
 WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
 WEBHOOK_URL = f"{RENDER_URL}{WEBHOOK_PATH}"
 
