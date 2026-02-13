@@ -14,10 +14,7 @@ from aiogram.types import (
     BotCommand
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-try:
-    from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
-except ImportError:
-    from aiogram.webhook.asyncio_server import SimpleRequestHandler, setup_application
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from dotenv import load_dotenv
 import aiohttp
 import aiosqlite
@@ -199,6 +196,9 @@ async def on_startup(bot: Bot):
     # Установка Вебхука
     logger.info(f"Setting webhook: {WEBHOOK_URL}")
     await bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True)
+    # Запуск рассылки (event loop уже работает здесь)
+    asyncio.create_task(mailing_task())
+    logger.info("Mailing task started")
 
 def main():
     app = web.Application()
@@ -207,10 +207,10 @@ def main():
     setup_application(app, dp, bot=bot)
     
     app.router.add_get("/", lambda r: web.Response(text="Bot is running!"))
-    asyncio.create_task(mailing_task())
     
     dp.startup.register(on_startup)
     port = int(os.environ.get("PORT", 10000))
+    logger.info(f"Starting bot on port {port}")
     web.run_app(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
